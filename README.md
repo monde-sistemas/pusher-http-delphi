@@ -43,9 +43,9 @@ The default value is `api.pusherapp.com` which is the pusher.com http endpoint, 
 
 ### Secure Connections / SSL
 
-You can use SSL by passing the `UseSSL` option to the constructor:
+SSL is enabled by default. You can disable it by passing a empty option list `[]` to the constructor:
 ```
-TPusherServer.Create('app_id', 'app_key', 'secret', '', [UseSSL]);
+TPusherServer.Create('app_id', 'app_key', 'secret', '', []);
 ```
 
 ## Contributing

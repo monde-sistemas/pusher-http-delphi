@@ -13,7 +13,7 @@ type
     PusherServerNative: OleVariant;
   public
     constructor Create(AppID, AppKey, AppSecret: string; CustomHost: string = '';
-      Options: TOptions = []);
+      Options: TOptions = [UseSSL]);
     procedure Trigger(Channel, EventName, Message: string);
   end;
 
