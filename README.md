@@ -24,7 +24,7 @@ All of them are shipped with this lib releases.
 
 ## Usage
 
-Download the [last relase](https://github.com/monde-sistemas/pusher-http-delphi/releases/) zip package and add it to your project. Make sure all the dependencies are on the same folder that your exe.
+Download the [last release](https://github.com/monde-sistemas/pusher-http-delphi/releases/) zip package and add it to your project. Make sure all the dependencies are on the same folder that your exe.
 
 Add `PusherServer` to your unit uses clause.
 
@@ -39,7 +39,7 @@ It is possible to use a custom host address:
 ```
 TPusherServer.Create('app_id', 'app_key', 'secret', 'you_host.pusher.com');
 ```
-The default value is `api.pusherapp.com` which is the pusher.com http endpoint, but you can also use it wih a [poxa](https://github.com/edgurgel/poxa) server hosted in you own server.
+The default value is `api.pusherapp.com` which is the pusher.com http endpoint, but you can also use it with a [poxa](https://github.com/edgurgel/poxa) server hosted in your own server.
 
 ### Secure Connections / SSL
 
