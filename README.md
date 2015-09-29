@@ -55,6 +55,22 @@ SSL is enabled by default. You can disable it by passing a empty option list `[]
 TPusherServer.Create('app_id', 'app_key', 'secret', '', []);
 ```
 
+### Async
+
+To use async request you should use the `TAsyncPusherServer` class:
+```
+AsyncPusherServer := TAsyncPusherServer.Create('app_id', 'app_key', 'secret');
+AsyncPusherServer.Trigger('my-channel', 'my-event', 'my-message');
+```
+
+You can use the `OnError` event to log the errors:
+```
+AsyncPusherServer.OnError := procedure(Error: Exception)
+  begin
+    Log(Error.message);
+  end;
+```
+
 ## Contributing
 
 This lib is a work in progress and any help is greatly appreciated.
