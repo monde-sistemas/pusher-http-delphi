@@ -7,7 +7,8 @@ uses
   System.Generics.Collections,
   System.Threading,
   System.Classes,
-  SysUtils;
+  SysUtils,
+  System.SyncObjs;
 
 type
   TOptions = set of (UseSSL);
@@ -24,10 +25,12 @@ type
   TOnErrorEvent = reference to procedure(Error: Exception);
   TAsyncPusherServer = class(TPusherServer)
   private
+    FTaskList: TArray<ITask>;
     FOnError: TOnErrorEvent;
-    FLock: TObject;
+    FLock: TCriticalSection;
     function WithLock(Proc: TProc): TProc;
     procedure WithErrorHandling(Proc: TProc);
+    procedure AddToTaskList(Task: ITask);
   public
     property OnError: TOnErrorEvent  read FOnError write FOnError;
     constructor Create(AppID, AppKey, AppSecret: string; CustomHost: string = '';
@@ -53,37 +56,43 @@ end;
 
 { TAsyncPusherServer }
 
+procedure TAsyncPusherServer.AddToTaskList(Task: ITask);
+begin
+  SetLength(FTaskList, Length(FTaskList) +1);
+  FTaskList[High(FTaskList)] := Task;
+end;
+
 constructor TAsyncPusherServer.Create(AppID, AppKey, AppSecret,
   CustomHost: string; Options: TOptions);
 begin
   inherited;
-  FLock := TObject.Create;
+  FLock := TCriticalSection.Create;
 end;
 
 destructor TAsyncPusherServer.Destroy;
 begin
-  TMonitor.Wait(FLock, INFINITE);
+  TTask.WaitForAll(FTaskList);
   FLock.Free;
   inherited;
 end;
 
 procedure TAsyncPusherServer.Trigger(Channel, EventName, Message: string);
 begin
-  TTask.Run(WithLock(procedure
+  AddToTaskList(TTask.Run(WithLock(procedure
     begin
       inherited;
-    end));
+    end)));
 end;
 
 function TAsyncPusherServer.WithLock(Proc: TProc): TProc;
 begin
   Result := procedure
     begin
+      FLock.Acquire;
       try
-        TMonitor.Enter(FLock);
         WithErrorHandling(Proc);
       finally
-        TMonitor.Exit(FLock);
+        FLock.Release;
       end;
     end;
 end;
