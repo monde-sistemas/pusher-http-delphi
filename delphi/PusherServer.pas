@@ -30,6 +30,7 @@ type
     FLock: TCriticalSection;
     function WithLock(Proc: TProc): TProc;
     procedure WithErrorHandling(Proc: TProc);
+    procedure CleanUp(List: TArray<Itask>);
     procedure AddToTaskList(Task: ITask);
   public
     property OnError: TOnErrorEvent  read FOnError write FOnError;
@@ -58,8 +59,19 @@ end;
 
 procedure TAsyncPusherServer.AddToTaskList(Task: ITask);
 begin
+  CleanUp(FTaskList);
+
   SetLength(FTaskList, Length(FTaskList) +1);
   FTaskList[High(FTaskList)] := Task;
+end;
+
+procedure TAsyncPusherServer.CleanUp(List: TArray<Itask>);
+var
+  I: Integer;
+begin
+  for I := High(List) downto 0 do
+    if (Assigned(List[I]) and (List[I].Status = TTaskStatus.Completed)) then
+      Delete(List, I, 1);
 end;
 
 constructor TAsyncPusherServer.Create(AppID, AppKey, AppSecret,
