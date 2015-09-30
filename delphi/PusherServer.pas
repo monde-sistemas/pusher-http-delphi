@@ -23,21 +23,24 @@ type
   end;
 
   TOnErrorEvent = reference to procedure(Error: Exception);
-  TAsyncPusherServer = class(TPusherServer)
+  TAsyncPusherServer = class
   private
-    FTaskList: TArray<ITask>;
+    FAppID: string;
+    FAppKey: string;
+    FAppSecret: string;
+    FCustomHost: string;
+    FOptions: TOptions;
     FOnError: TOnErrorEvent;
-    FLock: TCriticalSection;
-    function WithLock(Proc: TProc): TProc;
-    procedure WithErrorHandling(Proc: TProc);
-    procedure CleanUp(List: TArray<Itask>);
-    procedure AddToTaskList(Task: ITask);
+    procedure NotifyError(Error: Exception);
+    procedure HandleError(Error: Exception);
+    function WithErrorHandling(Proc: TProc): TProc;
+    procedure ExecTrigger(Channel, EventName, Message: string);
   public
     property OnError: TOnErrorEvent  read FOnError write FOnError;
     constructor Create(AppID, AppKey, AppSecret: string; CustomHost: string = '';
-      Options: TOptions = [UseSSL]); override;
+      Options: TOptions = [UseSSL]);
     destructor Destroy; override;
-    procedure Trigger(Channel, EventName, Message: string); override;
+    procedure Trigger(Channel, EventName, Message: string);
   end;
 
 implementation
@@ -57,67 +60,65 @@ end;
 
 { TAsyncPusherServer }
 
-procedure TAsyncPusherServer.AddToTaskList(Task: ITask);
-begin
-  CleanUp(FTaskList);
-
-  SetLength(FTaskList, Length(FTaskList) +1);
-  FTaskList[High(FTaskList)] := Task;
-end;
-
-procedure TAsyncPusherServer.CleanUp(List: TArray<Itask>);
-var
-  I: Integer;
-begin
-  for I := High(List) downto 0 do
-    if (Assigned(List[I]) and (List[I].Status = TTaskStatus.Completed)) then
-      Delete(List, I, 1);
-end;
-
 constructor TAsyncPusherServer.Create(AppID, AppKey, AppSecret,
   CustomHost: string; Options: TOptions);
 begin
-  inherited;
-  FLock := TCriticalSection.Create;
+  FAppID := AppID;
+  FAppKey := AppKey;
+  FAppSecret := AppSecret;
+  FCustomHost :=  CustomHost;
+  FOptions := Options;
 end;
 
 destructor TAsyncPusherServer.Destroy;
 begin
-  TTask.WaitForAll(FTaskList);
-  FLock.Free;
+  FOnError := nil;
   inherited;
+end;
+
+procedure TAsyncPusherServer.ExecTrigger(Channel, EventName, Message: string);
+var
+  PusherServer: TPusherServer;
+begin
+  PusherServer := TPusherServer.Create(FAppID, FAppKey, FAppSecret, FCustomHost, FOptions);
+  try
+    PusherServer.Trigger(Channel, EventName, Message);
+  finally
+    PusherServer.Free;
+  end;
+end;
+
+procedure TAsyncPusherServer.HandleError(Error: Exception);
+begin
+  TThread.Synchronize(nil, procedure
+    begin
+      try NotifyError(Error); except end;
+    end);
+end;
+
+procedure TAsyncPusherServer.NotifyError(Error: Exception);
+begin
+  if Assigned(FOnError) then
+    FOnError(Error);
 end;
 
 procedure TAsyncPusherServer.Trigger(Channel, EventName, Message: string);
 begin
-  AddToTaskList(TTask.Run(WithLock(procedure
+  TTask.Run(WithErrorHandling(procedure
     begin
-      inherited;
-    end)));
+      ExecTrigger(Channel, EventName, Message);
+    end));
 end;
 
-function TAsyncPusherServer.WithLock(Proc: TProc): TProc;
+function TAsyncPusherServer.WithErrorHandling(Proc: TProc): TProc;
 begin
   Result := procedure
-    begin
-      FLock.Acquire;
-      try
-        WithErrorHandling(Proc);
-      finally
-        FLock.Release;
-      end;
-    end;
-end;
-
-procedure TAsyncPusherServer.WithErrorHandling(Proc: TProc);
-begin
-  try
-    Proc;
-  except
-    on E:Exception do
-    begin
-      if Assigned(FOnError) then
-        FOnError(E);
+  begin
+    try
+      Proc();
+    except
+      on E:Exception do
+        HandleError(E);
     end;
   end;
 end;
