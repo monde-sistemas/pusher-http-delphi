@@ -45,10 +45,14 @@ type
 
 implementation
 
+uses
+  Winapi.ActiveX;
+
 { TPusherServer }
 
 constructor TPusherServer.Create(AppID, AppKey, AppSecret, CustomHost: string; Options: TOptions);
 begin
+  CoInitialize(nil);
   PusherServerNative := CreateOleObject('PusherServerNative.Pusher');
   PusherServerNative.InitializePusherServer(AppID, AppKey, AppSecret, CustomHost, UseSSL in Options);
 end;
@@ -73,6 +77,7 @@ end;
 destructor TAsyncPusherServer.Destroy;
 begin
   FOnError := nil;
+  CoUninitialize;
   inherited;
 end;
 
